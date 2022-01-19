@@ -19,12 +19,15 @@ int main(int argc, char const *argv[])
     int rv;
     int numbytes;
 
-    char* message; //temp
+    char* message[4]; //temp
 
     if (argc != 3) {
         fprintf(stderr, "usage: Missing/too many arguments\n");
         exit(1);
     }
+
+    char filepath[1000];
+    scanf("%s%s", filepath);
 
     const char* serverAddress = argv[1];
     const char* serverPort = argv[2];
@@ -52,14 +55,28 @@ int main(int argc, char const *argv[])
         return 2;
     }
 
-    if ((numbytes = sendto(sockfd, temp, strlen(temp), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+    FILE* file = fopen(filepath, "r");
+
+    if (file) {
+        message = "ftp"
+    } else {
+        return 0;
+    }
+
+    if ((numbytes = sendto(sockfd, message, strlen(message), 0, p->ai_addr, p->ai_addrlen)) == -1) {
         perror("client: sendto");
         exit(1);
     }
 
-    freeaddrinfo(servinfo);
+    if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+        return 0;
+    }
 
-    printf("client: sent %d bytes to %s\n", numbytes, temp)
+    if (strcmp(message, "yes") == 0) {
+        fprintf("A file transfer can start.\n")
+    }
+
+    freeaddrinfo(servinfo);
 
     return 0;
 }
