@@ -19,24 +19,20 @@ int main(int argc, char const *argv[])
     int rv;
     int numbytes;
 
-    char* message[4]; //temp
-
     if (argc != 3) {
         fprintf(stderr, "usage: Missing/too many arguments\n");
         exit(1);
     }
 
+    char temp[10];
     char filepath[1000];
-    scanf("%s%s", filepath);
-
-    const char* serverAddress = argv[1];
-    const char* serverPort = argv[2];
+    scanf("%s%s", temp, filepath);
 
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET6; //IPv4
+    hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; // UDP
 
-    if ((rv = getaddrinfo(serverAddress, serverPort, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, "6969", &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -57,23 +53,31 @@ int main(int argc, char const *argv[])
 
     FILE* file = fopen(filepath, "r");
 
-    if (file) {
-        message = "ftp"
-    } else {
+    if (file == NULL) {
+        printf("yo");
         return 0;
-    }
+    } 
 
-    if ((numbytes = sendto(sockfd, message, strlen(message), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+    char message[] = "ftp";
+
+    struct sockaddr_in dest;
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(atoi(argv[2]));
+
+    inet_pton(AF_INET, argv[1], &(dest.sin_addr));
+    
+    if ((numbytes = sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
         perror("client: sendto");
         exit(1);
     }
 
-    if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+    if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen)) == -1) {
+        perror("client: recvfrom");
         return 0;
     }
 
     if (strcmp(message, "yes") == 0) {
-        fprintf("A file transfer can start.\n")
+        printf("A file transfer can start.\n");
     }
 
     freeaddrinfo(servinfo);
