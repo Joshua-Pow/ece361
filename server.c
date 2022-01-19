@@ -13,14 +13,14 @@
 
 void* get_in_addr(struct sockaddr *sa);
 
-//Source: "Beejs Guid To Network Programming pg.37"
+//Source: "Beejs Guide To Network Programming pg.37"
 int main(int argc, char const *argv[])
 {
     const char* port = argv[1];
     printf("Port: %s\n", port);
 
     struct addrinfo hints; //Criteria to be returned from get_addr
-    struct addrinfo *servinfo;
+    struct addrinfo *servinfo; //returned info from getaddrinfo about
     struct addrinfo *p;
 
     struct sockaddr_storage their_addr;
@@ -67,26 +67,33 @@ int main(int argc, char const *argv[])
 
     int numbytes;
 	addr_len = sizeof their_addr;
-	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
-		(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
 		perror("recvfrom");
 		exit(1);
 	}
 
-	printf("listener: got packet from %s\n",
-		inet_ntop(their_addr.ss_family,
-			get_in_addr((struct sockaddr *)&their_addr),
-			s, sizeof s));
+	printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
 	printf("listener: packet is %d bytes long\n", numbytes);
 	buf[numbytes] = '\0';
 	printf("listener: packet contains \"%s\"\n", buf);
 
+	//Send back to their_addr
+	if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
+		if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+			perror("sendto");
+			exit(1);
+		}
+	}
+	else{
+		if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+			perror("sendto");
+			exit(1);
+		}
+	}
+
 	close(sockfd);
 
 	return 0;
-
-
-    return 0;
 }
 
 //Get sockaddr, IPv4 or IPv6
