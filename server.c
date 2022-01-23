@@ -14,8 +14,15 @@
 void* get_in_addr(struct sockaddr *sa);
 
 //Source: "Beejs Guide To Network Programming pg.37"
+//Format: server {port}
 int main(int argc, char const *argv[])
 {
+
+	if (argc != 2) {
+        fprintf(stderr, "usage: server {port}\nMissing/too many arguments\n");
+        exit(1);
+    }
+
     const char* port = argv[1];
     printf("Port: %s\n", port);
 
@@ -32,22 +39,22 @@ int main(int argc, char const *argv[])
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; //UDP (SOCK_STREAM is TCP)
-    hints.ai_flags = AI_PASSIVE; //accepts anything on the network?
+    hints.ai_flags = AI_PASSIVE; //accepts anything
 
     int rv; //return value
-    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) { //Fills up servinfo
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
 
     int sockfd; //socket file descriptor
-    for(p = servinfo; p != NULL; p = p->ai_next) { //Might not need to loop through all packets
-		if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+    for(p = servinfo; p != NULL; p = p->ai_next) { //Might not need to loop through all
+		if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) { //returns file descriptor for open socket
 			perror("listener: socket");
 			continue;
 		}
 
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) { //binds the ip to the port number
 			close(sockfd);
 			perror("listener: bind");
 			continue;
@@ -63,31 +70,34 @@ int main(int argc, char const *argv[])
 
 	freeaddrinfo(servinfo);
 
-	printf("listener: waiting to recvfrom...\n");
+	//Loop the server to keep receiving
+	while (1){
+		printf("listener: waiting to recvfrom...\n");
 
-    int numbytes;
-	addr_len = sizeof their_addr;
-	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-		perror("recvfrom");
-		exit(1);
-	}
-
-	printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
-	printf("listener: packet is %d bytes long\n", numbytes);
-	buf[numbytes] = '\0';
-	printf("listener: packet contains \"%s\"\n", buf);
-
-	//Send back to their_addr
-	if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
-		if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-			perror("sendto");
+		int numbytes;
+		addr_len = sizeof their_addr;
+		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+			perror("recvfrom");
 			exit(1);
 		}
-	}
-	else{
-		if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-			perror("sendto");
-			exit(1);
+
+		printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
+		printf("listener: packet is %d bytes long\n", numbytes);
+		buf[numbytes] = '\0';
+		printf("listener: packet contains \"%s\"\n", buf);
+
+		//Send back to their_addr
+		if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
+			if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+				perror("sendto");
+				exit(1);
+			}
+		}
+		else{
+			if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+				perror("sendto");
+				exit(1);
+			}
 		}
 	}
 

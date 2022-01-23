@@ -54,7 +54,7 @@ int main(int argc, char const *argv[])
     FILE* file = fopen(filepath, "r");
 
     if (file == NULL) {
-        printf("yo");
+        printf("Invalid file\n");
         return 0;
     } 
 
