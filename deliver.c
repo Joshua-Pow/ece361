@@ -56,6 +56,11 @@ int main(int argc, char const *argv[])
     //Try to open file given by user
     FILE* file = fopen(filepath, "r");
 
+    if (strcmp(temp, "ftp") != 0) {
+        printf("Invalid command\n");
+        return 0;
+    }
+
     //If file couldn't be opened, exit
     if (file == NULL) {
         printf("Invalid file\n");
