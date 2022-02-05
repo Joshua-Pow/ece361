@@ -16,7 +16,7 @@ void packet_fill (struct packet* recieve, char* buf, int numbytes){
 	char string[numbytes];
 	memcpy(string, buf, numbytes+1);
 	printf("str: %s\n", string);
-	printf("temp\n");
+	printf("temp2\n");
 
 	char* token = strtok(string,":");
 	printf("%s\n", token);

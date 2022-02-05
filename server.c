@@ -11,7 +11,7 @@
 
 #include "packet.h"
 
-#define MAXBUFLEN 100
+#define MAXBUFLEN 100000
 
 void* get_in_addr(struct sockaddr *sa);
 
@@ -75,9 +75,11 @@ int main(int argc, char const *argv[])
 	freeaddrinfo(servinfo);
 
 	//Loop the server to keep receiving
+	FILE* file; //file to write to
 	while (1){
 		printf("listener: waiting to recvfrom...\n");
 
+		//Recieve packet from client
 		int numbytes;
 		addr_len = sizeof their_addr;
 		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
@@ -90,25 +92,48 @@ int main(int argc, char const *argv[])
 		buf[numbytes] = '\0';
 		printf("listener: packet contains \"%s\"\n", buf);
 
+		//info from the packet recieved from client
 		struct packet info;
 		packet_fill(&info, buf, numbytes);
 
-		fopen(info.filename, "wr");
+		//If its the first packet open file and save file pointer
+		if (info.frag_no == 1){ 
+			file = fopen(info.filename, "wr"); //make sure to close later
+			if (file==NULL){ //If file couldnt be opened 
+				if ((numbytes = sendto(sockfd, "Error", strlen("Error"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+					perror("sendto");
+					exit(1);
+				}
+			}
+		}
 
+		//Puts data into file
+		fputs(info.filedata,file);
+
+		//If last packet close file
+		if(info.frag_no==info.total_frag){
+			fclose(file);
+		}
+
+		//Send an acknowledge that we got the packet
+		if ((numbytes = sendto(sockfd, "Ack", strlen("Ack"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+			perror("sendto");
+			exit(1);
+		}
 
 		//Send back to their_addr
-		if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
-			if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				perror("sendto");
-				exit(1);
-			}
-		}
-		else{
-			if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				perror("sendto");
-				exit(1);
-			}
-		}
+		// if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
+		// 	if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+		// 		perror("sendto");
+		// 		exit(1);
+		// 	}
+		// }
+		// else{
+		// 	if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+		// 		perror("sendto");
+		// 		exit(1);
+		// 	}
+		// }
 	}
 
 	close(sockfd);
