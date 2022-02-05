@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include "packet.h"
+
 //Source: "Beejs Guide To Network Programming pg.37"
 //Format: deliver {server ip} {port}
 int main(int argc, char const *argv[])

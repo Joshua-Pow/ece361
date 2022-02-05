@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include "packet.h"
+
 #define MAXBUFLEN 100
 
 void* get_in_addr(struct sockaddr *sa);
@@ -17,6 +19,8 @@ void* get_in_addr(struct sockaddr *sa);
 //Format: server {port}
 int main(int argc, char const *argv[])
 {
+	struct packet temp;
+	packet_fill(&temp,"3:1:10:foobar.txt:lo World!\n", 31);
 
 	if (argc != 2) {
         fprintf(stderr, "usage: server {port}\nMissing/too many arguments\n");
@@ -85,6 +89,12 @@ int main(int argc, char const *argv[])
 		printf("listener: packet is %d bytes long\n", numbytes);
 		buf[numbytes] = '\0';
 		printf("listener: packet contains \"%s\"\n", buf);
+
+		struct packet info;
+		packet_fill(&info, buf, numbytes);
+
+		fopen(info.filename, "wr");
+
 
 		//Send back to their_addr
 		if(strcmp(buf,"ftp") == 0){ //Checks to see if message is ftp
