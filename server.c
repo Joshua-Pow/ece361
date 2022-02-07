@@ -77,7 +77,9 @@ int main(int argc, char const *argv[])
 	//Loop the server to keep receiving
 	FILE* file; //file to write to
 	int recvFtp = 0;
+
 	while (1){
+		memset(buf, 0, sizeof buf); //clear the buffer
 		printf("listener: waiting to recvfrom...\n");
 
 		//Recieve packet from client
@@ -90,11 +92,11 @@ int main(int argc, char const *argv[])
 
 		printf("listener: got packet from %s\n", inet_ntop(their_addr.sin_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
 		printf("listener: packet is %d bytes long\n", numbytes);
-		//buf[numbytes] = '\0';
-		//printf("listener: packet contains \"%s\"\n", buf);
 
 		//Checks to see if message is ftp
 		if(recvFtp == 1) {
+			printf("listener: packet contains \"%x\"\n", buf);
+
 			//info from the packet recieved from client
 			struct packet info;
 			packet_fill(&info, buf, numbytes);
@@ -111,10 +113,8 @@ int main(int argc, char const *argv[])
 			}
 
 			//Puts data into file
-			//fwrite(info.filedata, sizeof(info.filedata), 1, file);
 			fwrite(info.filedata, sizeof(char), info.size, file);
 			printf("Writing 2 file\n");
-			//fread(file, sizeof(info.filedata), 1, );
 
 			//If last packet close file
 			if(info.frag_no==info.total_frag){
@@ -122,8 +122,7 @@ int main(int argc, char const *argv[])
 				recvFtp = 0; //reset the recieved ftp flag
 			}
 
-			//char temp[1000];
-			//sprintf(temp, "%d:%d:%d%s:Ack", info.total_frag, info.frag_no, info.size, info.filename);
+
 			//Send an acknowledge that we got the packet
 			if ((numbytes = sendto(sockfd, "Ack", strlen("Ack"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
 				perror("sendto - Ack");
@@ -131,6 +130,8 @@ int main(int argc, char const *argv[])
 			}
 		}
 		else if(strcmp(buf,"ftp") == 0){ 
+			buf[numbytes] = '\0';
+			printf("listener: packet contains \"%s\"\n", buf);
 			recvFtp = 1;
 			if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
 				perror("sendto - Yes");
