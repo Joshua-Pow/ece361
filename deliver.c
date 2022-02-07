@@ -8,6 +8,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <libgen.h>
+#include <math.h>
+#include <sys/stat.h>
+#include <string.h>
 
 #include "packet.h"
 
@@ -96,6 +100,72 @@ int main(int argc, char const *argv[])
         printf("A file transfer can start.\n");
     }
 
+    struct packet pack;
+
+    //https://linux.die.net/man/3/basename
+    pack.filename = basename(filepath);
+
+    struct stat fileinfo;
+    stat(filepath, &fileinfo);
+    pack.total_frag = ceil(fileinfo.st_size/1000);
+
+    if (pack.total_frag < fileinfo.st_size/1000.0) {
+        pack.total_frag+=1;
+    }
+
+    pack.frag_no = 0;
+
+    int remaining = fileinfo.st_size;
+    char filechar[1000];
+    char* serialized;
+
+    while (remaining != 0) {
+        pack.frag_no+=1;
+
+        if (remaining >= 1000) {
+            remaining-=1000;
+            pack.size = 1000;
+        } else {
+            pack.size = remaining;
+            remaining = 0;
+        }
+
+        char tempTotalFrag[10];
+        char tempFragNo[10];
+        char tempSize[5];
+
+        sprintf(tempTotalFrag, "%d", pack.total_frag);
+        sprintf(tempFragNo, "%d", pack.frag_no);
+        sprintf(tempSize, "%d", pack.size);
+
+        serialized = (char*)malloc((strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4)*sizeof(char));
+        sprintf(serialized, "%d:%d:%d:%s:", pack.total_frag, pack.frag_no, pack.size, pack.filename);
+        fread(pack.filedata, pack.size, 1, file);
+        memcpy(serialized + (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + 4), pack.filedata, pack.size);
+        printf("%s\n", serialized);
+
+        if ((numbytes = sendto(sockfd, serialized, (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
+            perror("client: sendto");
+            exit(1);
+        }
+
+        if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen)) == -1) {
+            perror("client: recvfrom");
+            return 0;
+        }
+
+        if (strcmp(message, "Ack") != 0) {
+            printf("File transfer could not be completed.\n");
+            printf("%s\n", message);
+            break;
+        }
+
+        free(serialized);
+        serialized = NULL;
+    }
+
+    fclose(file);
+    free(serialized);
     freeaddrinfo(servinfo);
 
     return 0;
