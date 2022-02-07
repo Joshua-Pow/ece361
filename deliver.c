@@ -165,8 +165,9 @@ int main(int argc, char const *argv[])
 
         if (strcmp(message, "Ack") != 0) {
             printf("File transfer could not be completed.\n");
-            printf("%s\n", message);
+            printf("%s\n", message);         
             free(serialized);
+            serialized = NULL;
             break;
         }
 
