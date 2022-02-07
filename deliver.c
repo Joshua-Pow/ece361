@@ -12,6 +12,7 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <time.h>
 
 #include "packet.h"
 
@@ -83,6 +84,9 @@ int main(int argc, char const *argv[])
 
     inet_pton(AF_INET, argv[1], &(dest.sin_addr));
     
+    //Measure RTT time
+    clock_t start = clock();
+
     //Send message, but if -1 is returned, exit
     if ((numbytes = sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
         perror("client: sendto");
@@ -130,9 +134,9 @@ int main(int argc, char const *argv[])
             remaining = 0;
         }
 
-        char tempTotalFrag[10];
-        char tempFragNo[10];
-        char tempSize[5];
+        char tempTotalFrag[1000000];
+        char tempFragNo[1000000];
+        char tempSize[100];
 
         sprintf(tempTotalFrag, "%d", pack.total_frag);
         sprintf(tempFragNo, "%d", pack.frag_no);
@@ -142,7 +146,7 @@ int main(int argc, char const *argv[])
         sprintf(serialized, "%d:%d:%d:%s:", pack.total_frag, pack.frag_no, pack.size, pack.filename);
         fread(pack.filedata, pack.size, 1, file);
         memcpy(serialized + (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + 4), pack.filedata, pack.size);
-        printf("%s\n", serialized);
+        //printf("%s\n", serialized);
 
         if ((numbytes = sendto(sockfd, serialized, (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
             perror("client: sendto");
@@ -154,9 +158,15 @@ int main(int argc, char const *argv[])
             return 0;
         }
 
+        if (pack.frag_no==1){
+            clock_t end = clock();
+            printf("RTT time: %f microseconds\n", ((double)(end-start)/CLOCKS_PER_SEC)*1000000);
+        }
+
         if (strcmp(message, "Ack") != 0) {
             printf("File transfer could not be completed.\n");
             printf("%s\n", message);
+            free(serialized);
             break;
         }
 
@@ -165,7 +175,6 @@ int main(int argc, char const *argv[])
     }
 
     fclose(file);
-    free(serialized);
     freeaddrinfo(servinfo);
 
     return 0;
