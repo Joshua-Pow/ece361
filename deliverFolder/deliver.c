@@ -90,14 +90,19 @@ int main(int argc, char const *argv[])
     //Send message, but if -1 is returned, exit
     if ((numbytes = sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
         perror("client: sendto");
+        fclose(file);
         exit(1);
     }
 
     //Receive message from server, but if -1 is returned, exit
     if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen)) == -1) {
         perror("client: recvfrom");
+        fclose(file);
         return 0;
     }
+
+    clock_t end = clock();
+    printf("RTT time: %f microseconds\n", ((double)(end-start)/CLOCKS_PER_SEC)*1000000);
 
     //If message is == "yes" tell the user that files can be transferred
     if (strcmp(message, "yes") == 0) {
@@ -107,24 +112,28 @@ int main(int argc, char const *argv[])
     struct packet pack;
 
     //https://linux.die.net/man/3/basename
-    pack.filename = basename(filepath);
+    pack.filename = filepath;
 
-    struct stat fileinfo;
-    stat(filepath, &fileinfo);
-    pack.total_frag = ceil(fileinfo.st_size/1000);
+    // struct stat fileinfo;
+    // stat(filepath, &fileinfo);
+    // pack.total_frag = ceil(fileinfo.st_size/1000);
+    fseek(file, 0L, SEEK_END);
+    int remaining = ftell(file);
+    rewind(file);
+    printf("File size: %u\n", remaining);
 
-    if (pack.total_frag < fileinfo.st_size/1000.0) {
-        pack.total_frag+=1;
-    }
+    // if (pack.total_frag < fileinfo.st_size/1000.0) {
+    //     pack.total_frag+=1;
+    // }
 
     pack.frag_no = 0;
 
-    int remaining = fileinfo.st_size;
+    pack.total_frag = ceil(remaining/1000.0);
     char filechar[1000];
     char* serialized;
 
-    while (remaining != 0) {
-        pack.frag_no+=1;
+    while (remaining > 0) {
+        pack.frag_no++;
 
         if (remaining >= 1000) {
             remaining-=1000;
@@ -134,33 +143,38 @@ int main(int argc, char const *argv[])
             remaining = 0;
         }
 
-        char tempTotalFrag[1000000];
-        char tempFragNo[1000000];
-        char tempSize[100];
+        // char tempTotalFrag[1000000];
+        // char tempFragNo[1000000];
+        // char tempSize[100];
 
-        sprintf(tempTotalFrag, "%d", pack.total_frag);
-        sprintf(tempFragNo, "%d", pack.frag_no);
-        sprintf(tempSize, "%d", pack.size);
+        // sprintf(tempTotalFrag, "%d", pack.total_frag);
+        // sprintf(tempFragNo, "%d", pack.frag_no);
+        // sprintf(tempSize, "%d", pack.size);
 
-        serialized = (char*)malloc((strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4)*sizeof(char));
+        int sizeOfString; //= sizeof(pack.total_frag)+sizeof(pack.frag_no)+sizeof(pack.size)+sizeof(pack.filename)+pack.size+sizeof(char)*4;
+       // int sizeOfWrong = (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4);
+
+        
+        sizeOfString = snprintf(NULL, 0,"%d:%d:%d:%s:", pack.total_frag, pack.frag_no, pack.size, pack.filename);
+        serialized = (char*)malloc((sizeOfString+1000)*sizeof(char));
         sprintf(serialized, "%d:%d:%d:%s:", pack.total_frag, pack.frag_no, pack.size, pack.filename);
         fread(pack.filedata, pack.size, 1, file);
-        memcpy(serialized + (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + 4), pack.filedata, pack.size);
+        memcpy(serialized+sizeOfString, pack.filedata, pack.size);
+
+       
+        //memcpy(serialized + sizeOfWrong, pack.filedata, pack.size);
         //printf("%s\n", serialized);
 
-        if ((numbytes = sendto(sockfd, serialized, (strlen(tempTotalFrag) + strlen(tempFragNo) + strlen(tempSize) + strlen(pack.filename) + pack.size + 4), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
+        if ((numbytes = sendto(sockfd, serialized, sizeOfString+pack.size, 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
             perror("client: sendto");
+            fclose(file);
             exit(1);
         }
 
         if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen)) == -1) {
             perror("client: recvfrom");
+            fclose(file);
             return 0;
-        }
-
-        if (pack.frag_no==1){
-            clock_t end = clock();
-            printf("RTT time: %f microseconds\n", ((double)(end-start)/CLOCKS_PER_SEC)*1000000);
         }
 
         if (strcmp(message, "Ack") != 0) {

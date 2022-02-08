@@ -1,6 +1,7 @@
 #vscode files
 .vscode
 *.txt
+.nfs*
 
 # Prerequisites
 *.d

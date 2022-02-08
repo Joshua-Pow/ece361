@@ -14,7 +14,7 @@ void packet_fill (struct packet* recieve, char* buf, int numbytes){
 	//Buf is going to be "3:2:10:foobar.txt:lo World!\n"
 	//struct packet recieve;
 	//printf("Correct: %s", buf);
-	char string[numbytes];
+	char* string = (char*)malloc(numbytes*sizeof(char));
 	memcpy(string, buf, numbytes);
 
 	//printf("str: %s\n", string);

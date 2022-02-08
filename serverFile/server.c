@@ -79,13 +79,13 @@ int main(int argc, char const *argv[])
 	int recvFtp = 0;
 
 	while (1){
-		memset(buf, 0, sizeof buf); //clear the buffer
+		memset(buf, 0, sizeof(buf)); //clear the buffer
 		printf("listener: waiting to recvfrom...\n");
 
 		//Recieve packet from client
 		int numbytes;
 		addr_len = sizeof their_addr;
-		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
 			perror("recvfrom");
 			exit(1);
 		}
@@ -104,12 +104,12 @@ int main(int argc, char const *argv[])
 			//If its the first packet open file and save file pointer
 			if (info.frag_no == 1){ 
 				file = fopen(info.filename, "wr"); //make sure to close later
-				if (file==NULL){ //If file couldnt be opened 
-					if ((numbytes = sendto(sockfd, "Error", strlen("Error"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-						perror("Cant open file");
-						exit(1);
-					}
-				}
+				// if (file==NULL){ //If file couldnt be opened 
+				// 	if ((numbytes = sendto(sockfd, "Error", strlen("Error"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+				// 		perror("Cant open file");
+				// 		exit(1);
+				// 	}
+				// }
 			}
 
 			//Puts data into file
