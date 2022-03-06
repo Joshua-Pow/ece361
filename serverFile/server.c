@@ -150,7 +150,7 @@ int main(int argc, char const *argv[])
 			}
 		}
 		else{
-			printf("Server: Dropping packet");
+			printf("Server: Dropping packet\n");
 		}
 		
 	}
@@ -173,5 +173,7 @@ void* get_in_addr(struct sockaddr *sa){
 }
 
 double uniform_rand(){
-	return rand()/(double) RAND_MAX;
+	double random = rand()/(double) RAND_MAX;
+	printf("%f\n", random);
+	return random;
 }

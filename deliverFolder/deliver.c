@@ -12,7 +12,7 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <string.h>
-#include <time.h>
+#include <sys/time.h>
 
 #include "packet.h"
 
@@ -85,7 +85,8 @@ int main(int argc, char const *argv[])
     inet_pton(AF_INET, argv[1], &(dest.sin_addr));
     
     //Measure RTT time
-    clock_t start = clock();
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
     //Send message, but if -1 is returned, exit
     if ((numbytes = sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
@@ -101,8 +102,16 @@ int main(int argc, char const *argv[])
         return 0;
     }
 
-    clock_t end = clock();
-    printf("RTT time: %f microseconds\n", ((double)(end-start)/CLOCKS_PER_SEC)*1000000);
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    double rtt = end.tv_usec - start.tv_usec;
+    printf("RTT time: %f microseconds\n", rtt);
+
+    struct timeval t1;
+    t1.tv_sec = 0;
+    t1.tv_usec = 6*rtt;
+
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &t1, sizeof(t1));
 
     //If message is == "yes" tell the user that files can be transferred
     if (strcmp(message, "yes") == 0) {
@@ -161,7 +170,6 @@ int main(int argc, char const *argv[])
         fread(pack.filedata, pack.size, 1, file);
         memcpy(serialized+sizeOfString, pack.filedata, pack.size);
 
-       
         //memcpy(serialized + sizeOfWrong, pack.filedata, pack.size);
         //printf("%s\n", serialized);
 
@@ -171,10 +179,18 @@ int main(int argc, char const *argv[])
             exit(1);
         }
 
-        if ((numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen)) == -1) {
-            perror("client: recvfrom");
-            fclose(file);
-            return 0;
+        numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen);
+
+        while ((errno == EWOULDBLOCK || errno == EAGAIN) && numbytes == -1) {
+            printf("Timeout, retransmitting packet %d to server.\n", pack.frag_no);
+
+            if ((numbytes = sendto(sockfd, serialized, sizeOfString+pack.size, 0, (struct sockaddr*)&dest, sizeof(dest))) == -1) {
+                perror("client: sendto");
+                fclose(file);
+                exit(1);
+            }
+
+            numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen);
         }
 
         if (strcmp(message, "Ack") != 0) {
