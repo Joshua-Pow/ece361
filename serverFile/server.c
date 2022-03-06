@@ -14,6 +14,7 @@
 #define MAXBUFLEN 5000
 
 void* get_in_addr(struct sockaddr *sa);
+double uniform_rand();
 
 //Source: "Beejs Guide To Network Programming pg.37"
 //Format: server {port}
@@ -76,7 +77,7 @@ int main(int argc, char const *argv[])
 
 	//Loop the server to keep receiving
 	FILE* file; //file to write to
-	int recvFtp = 0;
+	int recvFtp = 0; //holds value to determine if FTP was already sent
 
 	while (1){
 		memset(buf, 0, sizeof(buf)); //clear the buffer
@@ -93,58 +94,61 @@ int main(int argc, char const *argv[])
 		printf("listener: got packet from %s\n", inet_ntop(their_addr.sin_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
 		printf("listener: packet is %d bytes long\n", numbytes);
 
-		//Checks to see if message is ftp
-		if(recvFtp == 1) {
-			printf("listener: packet contains \"%x\"\n", buf);
+		//Draw a random number to determine whether or not to process the packet
+		if (uniform_rand() > 0.01){
 
-			//info from the packet recieved from client
-			struct packet info;
-			packet_fill(&info, buf, numbytes);
+			//Checks to see if message is ftp
+			if(recvFtp == 1) { //FTP was already sent
+				printf("listener: packet contains \"%x\"\n", buf);
 
-			//If its the first packet open file and save file pointer
-			if (info.frag_no == 1){ 
-				file = fopen(info.filename, "wr"); //make sure to close later
-				// if (file==NULL){ //If file couldnt be opened 
-				// 	if ((numbytes = sendto(sockfd, "Error", strlen("Error"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				// 		perror("Cant open file");
-				// 		exit(1);
-				// 	}
-				// }
+				//info from the packet recieved from client
+				struct packet info;
+				packet_fill(&info, buf, numbytes);
+
+				//If its the first packet open file and save file pointer
+				if (info.frag_no == 1){ 
+					file = fopen(info.filename, "wr"); //make sure to close later
+					// if (file==NULL){ //If file couldnt be opened 
+					// 	if ((numbytes = sendto(sockfd, "Error", strlen("Error"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+					// 		perror("Cant open file");
+					// 		exit(1);
+					// 	}
+					// }
+				}
+
+				//Puts data into file
+				fwrite(info.filedata, sizeof(char), info.size, file);
+				printf("Writing 2 file\n");
+
+				//If last packet close file
+				if(info.frag_no==info.total_frag){
+					fclose(file);
+					recvFtp = 0; //reset the recieved ftp flag
+				}
+
+
+				//Send an acknowledge that we got the packet
+				if ((numbytes = sendto(sockfd, "Ack", strlen("Ack"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+					perror("sendto - Ack");
+					exit(1);
+				}
 			}
-
-			//Puts data into file
-			fwrite(info.filedata, sizeof(char), info.size, file);
-			printf("Writing 2 file\n");
-
-			//If last packet close file
-			if(info.frag_no==info.total_frag){
-				fclose(file);
-				recvFtp = 0; //reset the recieved ftp flag
+			else if(strcmp(buf,"ftp") == 0){ //Is FTP in the buffer?
+				buf[numbytes] = '\0';
+				printf("listener: packet contains \"%s\"\n", buf);
+				recvFtp = 1;
+				if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+					perror("sendto - Yes");
+					exit(1);
+				}
 			}
-
-
-			//Send an acknowledge that we got the packet
-			if ((numbytes = sendto(sockfd, "Ack", strlen("Ack"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				perror("sendto - Ack");
-				exit(1);
+			else{
+				if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+					perror("sendto - No");
+					exit(1);
+				}
 			}
 		}
-		else if(strcmp(buf,"ftp") == 0){ 
-			buf[numbytes] = '\0';
-			printf("listener: packet contains \"%s\"\n", buf);
-			recvFtp = 1;
-			if ((numbytes = sendto(sockfd, "yes", strlen("yes"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				perror("sendto - Yes");
-				exit(1);
-			}
-		}
-		else{
-			if ((numbytes = sendto(sockfd, "no", strlen("no"), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
-				perror("sendto - No");
-				exit(1);
-			}
-		}
-
 		
 	}
 
@@ -163,4 +167,8 @@ void* get_in_addr(struct sockaddr *sa){
         return &(((struct sockaddr_in*)sa)->sin_addr);
     }
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+double uniform_rand(){
+	return rand()/(double) RAND_MAX;
 }
