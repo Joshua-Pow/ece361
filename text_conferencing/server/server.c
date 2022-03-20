@@ -11,8 +11,171 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include "../conferencing.h"
 
-#define PORT "9034"   // port we're listening on
+char users[5][10] = {"user1", "user2", "user3", "user4", "user5"};
+char pass[5][10] = {"123", "123", "123", "123", "123"};
+char sessions[5][20] = {"Null", "Null", "Null", "Null", "Null"};
+int connected[5] = {0, 0, 0, 0, 0}; //1 = connected, 0 = not connected
+int userfds[5] = {0, 0, 0, 0, 0};
+
+void print_sessions(){
+    for (int i = 0; i < 5; i++)
+    {
+        printf("Session %d: %s\n", i, sessions[i]);
+    }
+    
+}
+
+int valid_user(char* user){
+    for (int i = 0; i < 5; i++)
+    {
+        if (strcmp(user, users[i])==0){
+            return i;
+        }
+    }
+    return -1;   
+}
+
+int valid_sess(char* sess){
+    for (int i = 0; i < 5; i++)
+    {
+        if (strcmp(sess, sessions[i])==0){
+            return i;
+        }
+    }
+    return -1; 
+}
+
+void login(struct message* packet, int fd){
+    int valid = valid_user(packet->source); //If valid user, holds index for info
+
+    if (valid!=-1){
+        userfds[valid] = fd;
+        if(connected[valid] == 1){ //user already logged in
+            if (send(userfds[valid], "3:18:Server:Already logged in", strlen("3:0:Server:Already logged in")+1, 0) == -1) {
+                perror("send");
+            }
+        }
+        else if (strcmp(packet->data, pass[valid])!=0){
+            if (send(userfds[valid], "3:30:Server:Invalid password for username", strlen("3:0:Server:Invalid password for username")+1, 0) == -1) {
+                perror("send");
+            }
+        } 
+
+        //Everything good, set to connected and return ack
+        connected[valid] = 1;
+        if (send(userfds[valid], "2:0:Server:", strlen("Already logged in")+1, 0) == -1) {
+            perror("send");
+        }
+
+    }
+    else if (valid==-1){
+        if (send(fd, "3:19:Server:Invalid login name", strlen("Invalid login name")+1, 0) == -1) {
+            perror("send");
+        }
+    }
+}
+
+void leave_sess(struct message* packet){
+    int valid_u = valid_user(packet->source);
+
+    if (valid_u != -1 && strcmp(sessions[valid_u], "Null")!=0){
+        strcpy(sessions[valid_u], "Null");
+    }
+}
+
+void exitChat(struct message* packet){
+    int valid = valid_user(packet->source); //If valid user, holds index for info
+
+    if (valid!=-1){
+        connected[valid] = 0; //Disconnect
+        leave_sess(packet); //Leave session
+    }
+    //Do nothing if not valid user
+}
+
+void join(struct message* packet){
+    print_sessions();
+    int valid_s = valid_sess(packet->data); //If valid sess, holds index for info
+    int valid_u = valid_user(packet->source); //If valid user, holds index for user
+    char return_message[150];
+    printf("join data: %s\n", packet->data);
+
+    if (valid_s!=-1 && valid_u!=-1 && strcmp(sessions[valid_u], "Null")==0){
+        printf("valid join session!\n");
+        strcpy(sessions[valid_u], packet->data); //Sets the session for the user
+        
+        sprintf(return_message, "6:%d:Server:%s", strlen(packet->data), packet->data);
+        if (send(userfds[valid_u], return_message, strlen(packet->data), 0) == -1) {
+            perror("send");
+        }
+    }
+    else{
+        sprintf(return_message, "7:%d, Invalid session:Server:%s", strlen(packet->data)+strlen(", Invalid session"), packet->data);
+        if (send(userfds[valid_u], return_message, strlen(packet->data), 0) == -1) {
+            perror("send");
+        } 
+    }
+    print_sessions();
+}
+
+void new_sess(struct message* packet){
+    int valid_u = valid_user(packet->source);
+
+    printf("b4 new\n");
+    if (valid_u != -1 && strcmp(sessions[valid_u], "Null")==0){
+        printf("session: %s\n", packet->data);
+        strcpy(sessions[valid_u], packet->data);
+        if (send(userfds[valid_u], "10:0:Server:", strlen("10:0:Server:")+1, 0) == -1) {
+            perror("send");
+        } 
+    }
+    print_sessions();
+}
+
+void message(struct message* packet){
+    int valid_u = valid_user(packet->source);
+    char session[20];
+    char return_message[120];
+    printf("message data: %s\n", packet->data);
+
+    if (valid_u!=-1){
+        for (int i = 0; i < 5; i++)
+        {
+            if (i!=valid_u && strcmp(sessions[i], sessions[valid_u])==0){
+                sprintf(return_message, "11:%d:%s:%s", packet->size, packet->source, packet->data);
+                if (send(userfds[i], return_message, strlen(return_message), 0) == -1) {
+                    perror("send");
+                } 
+            }
+        }
+    
+    }
+    
+}
+
+void query(struct message* packet){
+    int valid_u = valid_user(packet->source);
+    char return_message[250];
+    char allUsers[200] = "Online: ";
+    
+    for (int i=0; i<5; i++){
+        if (connected[i]==1){
+            strcat(allUsers, "\n");
+            strcat(allUsers, users[i]); //Find all unique rooms
+            strcat(allUsers, " ");
+            strcat(allUsers, sessions[i]);
+        }
+    }
+
+    if(valid_u!=-1){
+        sprintf(return_message, "13:%d:Server:%s", strlen(allUsers), allUsers);
+        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
+            perror("send");
+        } 
+    }
+}
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -24,8 +187,16 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(void)
+int main(int argc, char const *argv[])
 {
+    if (argc != 2) {
+        fprintf(stderr, "usage: server {port}\nMissing/too many arguments\n");
+        exit(1);
+    }
+
+    const char* port = argv[1]; // port we're listening on
+    printf("Port: %s\n", port);
+
     fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
@@ -53,7 +224,7 @@ int main(void)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0) {
+	if ((rv = getaddrinfo(NULL, port, &hints, &ai)) != 0) {
 		fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
 		exit(1);
 	}
@@ -129,29 +300,70 @@ int main(void)
                     }
                 } else {
                     // handle data from a client
+                    memset(buf, 0, 256);
                     if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
-                        // got error or connection closed by client
-                        if (nbytes == 0) {
-                            // connection closed
-                            printf("selectserver: socket %d hung up\n", i);
-                        } else {
-                            perror("recv");
+                        for (int k=0; k<5; k++){
+                            if (userfds[k]==i){
+                                connected[k]=0;
+                                strcpy(sessions[k], "Null");
+                            }
                         }
+                        printf("selectserver: socket %d hung up\n", i);
                         close(i); // bye!
                         FD_CLR(i, &master); // remove from master set
                     } else {
                         // we got some data from a client
-                        for(j = 0; j <= fdmax; j++) {
-                            // send to everyone!
-                            if (FD_ISSET(j, &master)) {
-                                // except the listener and ourselves
-                                if (j != listener && j != i) {
-                                    if (send(j, buf, nbytes, 0) == -1) {
-                                        perror("send");
-                                    }
+
+                        //Parse the data in buffer
+                        struct message packet;
+                        packet_fill(&packet, buf, nbytes);
+                        printf("Packet data: %s\n", packet.data);
+
+                        if (packet.type == LOGIN){
+                            login(&packet, i);
+                        }
+                        else if (packet.type == EXIT){
+                            exitChat(&packet);
+                        }
+                        else if (packet.type == JOIN){
+                            join(&packet);
+                        }
+                        else if (packet.type == LEAVE_SESS){
+                            leave_sess(&packet);
+                        }
+                        else if (packet.type == NEW_SESS){
+                            new_sess(&packet);
+                        }
+                        else if (packet.type == MESSAGE){
+                            message(&packet);
+                        }
+                        else if (packet.type == QUERY){
+                            query(&packet);
+                        }
+                        memset(buf, 0, 256);
+                        // got error or connection closed by client
+                        if (nbytes <= 0) {
+                            // connection closed
+                            for (int k=0; k<5; k++){
+                                if (userfds[k]==i){
+                                    connected[k]=0;
+                                    strcpy(sessions[k], "Null");
                                 }
                             }
+                            printf("selectserver: socket %d hung up\n", i);
                         }
+
+                        // for(j = 0; j <= fdmax; j++) {
+                        //     // send to everyone!
+                        //     if (FD_ISSET(j, &master)) {
+                        //         // except the listener and ourselves
+                        //         if (j != listener && j != i) {
+                        //             if (send(j, buf, nbytes, 0) == -1) {
+                        //                 perror("send");
+                        //             }
+                        //         }
+                        //     }
+                        // }
                     }
                 } // END handle data from client
             } // END got new incoming connection
