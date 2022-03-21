@@ -26,31 +26,31 @@ struct message {
 	unsigned char data[MAX_DATA];
 };
 
-void packet_fill(struct packet* message, char* buf, int numbytes){
-
-	//Buf is going to be "3:2:10:foobar.txt:lo World!\n"
+void packet_fill(struct message* msg, char* buf, int numbytes){
 	//Buf is going to be type:size:source:message
 	//ie: "1:64:tashan:HelloWorld!"
 
 	//struct packet recieve;
 	//printf("Correct: %s", buf);
 	char* string = (char*)malloc(numbytes*sizeof(char));
+	// buf[strcspn(buf, "\n")] = 0;
 	memcpy(string, buf, numbytes);
 
 	//printf("str: %s\n", string);
 	//printf("temp2\n");
+	printf("Deserialize: %s\n", buf);
 
 	char* token = strtok(string,":");
 	printf("type: %s\n", token);
-	message->type = strtoul(token, NULL, 10);
-
-	token = strtok(NULL, ":");
-	printf("frag_no: %s\n", token);
-	message->size = strtoul(token, NULL, 10);
+	msg->type = strtoul(token, NULL, 10);
 
 	token = strtok(NULL, ":");
 	printf("size: %s\n", token);
-	message->source = strtoul(token, NULL, 10);
+	msg->size = strtoul(token, NULL, 10);
+
+	token = strtok(NULL, ":");
+	printf("source: %s\n", token);
+	strcpy(msg->source, token);
 
 	// token = strtok(NULL, ":");
 	// printf("file data: %s\n", token);
@@ -59,13 +59,18 @@ void packet_fill(struct packet* message, char* buf, int numbytes){
 		if (buf[i]==':'){
 			count++;
 			if (count==3){
+				for (int j = 0; j < msg->size; j++){
+					printf("Char: %c\n", buf[j+i+1]);
+				}
 				//printf("bytes: %d\n", numbytes-i);
-				memcpy(recieve->data, buf+i+1, message->size);
-				printf("Data: %x\n", message->data);
+				//memset(msg->data, 0, 1000);
+				strcpy(msg->data, buf+i+1);
+				printf("Data: %s\n", msg->data);
 				break;
 			}
 		}
 	}
+	free(string);
 	// memcpy(recieve->filedata, token, sizeof(token));
 }
 

@@ -53,25 +53,25 @@ void login(struct message* packet, int fd){
     if (valid!=-1){
         userfds[valid] = fd;
         if(connected[valid] == 1){ //user already logged in
-            if (send(userfds[valid], "3:18:Server:Already logged in", strlen("3:0:Server:Already logged in")+1, 0) == -1) {
+            if (send(userfds[valid], "3:18:Server:Already logged in", strlen("3:18:Server:Already logged in")+1, 0) == -1) {
                 perror("send");
             }
         }
         else if (strcmp(packet->data, pass[valid])!=0){
-            if (send(userfds[valid], "3:30:Server:Invalid password for username", strlen("3:0:Server:Invalid password for username")+1, 0) == -1) {
+            if (send(userfds[valid], "3:30:Server:Invalid password for username", strlen("3:30:Server:Invalid password for username")+1, 0) == -1) {
                 perror("send");
             }
         } 
 
         //Everything good, set to connected and return ack
         connected[valid] = 1;
-        if (send(userfds[valid], "2:0:Server:", strlen("Already logged in")+1, 0) == -1) {
+        if (send(userfds[valid], "2:0:Server:", strlen("2:0:Server:")+1, 0) == -1) {
             perror("send");
         }
 
     }
     else if (valid==-1){
-        if (send(fd, "3:19:Server:Invalid login name", strlen("Invalid login name")+1, 0) == -1) {
+        if (send(fd, "3:19:Server:Invalid login name", strlen("3:19:Server:Invalid login name")+1, 0) == -1) {
             perror("send");
         }
     }

@@ -174,6 +174,6 @@ void* get_in_addr(struct sockaddr *sa){
 
 double uniform_rand(){
 	double random = rand()/(double) RAND_MAX;
-	printf("%f\n", random);
+	printf("random number: %f\n", random);
 	return random;
 }

@@ -181,6 +181,7 @@ int main(int argc, char const *argv[])
 
         numbytes = recvfrom(sockfd, message, strlen(message), 0, p->ai_addr, &p->ai_addrlen);
 
+        //Check to see if there was a timeout or recvfrom did not work
         while ((errno == EWOULDBLOCK || errno == EAGAIN) && numbytes == -1) {
             printf("Timeout, retransmitting packet %d to server.\n", pack.frag_no);
 
