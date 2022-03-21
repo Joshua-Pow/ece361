@@ -107,13 +107,14 @@ void join(struct message* packet){
         strcpy(sessions[valid_u], packet->data); //Sets the session for the user
         
         sprintf(return_message, "6:%d:Server:%s", strlen(packet->data), packet->data);
-        if (send(userfds[valid_u], return_message, strlen(packet->data), 0) == -1) {
+        printf("b4 joinack: %s\n", return_message);
+        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
             perror("send");
         }
     }
     else{
         sprintf(return_message, "7:%d, Invalid session:Server:%s", strlen(packet->data)+strlen(", Invalid session"), packet->data);
-        if (send(userfds[valid_u], return_message, strlen(packet->data), 0) == -1) {
+        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
             perror("send");
         } 
     }
@@ -171,6 +172,7 @@ void query(struct message* packet){
 
     if(valid_u!=-1){
         sprintf(return_message, "13:%d:Server:%s", strlen(allUsers), allUsers);
+        printf("query return: %s\n", return_message);
         if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
             perror("send");
         } 
