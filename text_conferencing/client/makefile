@@ -3,7 +3,7 @@ SOURCE	= client.c
 HEADER	= ../conferencing.h
 OUT	= client
 CC	 = gcc
-FLAGS	 = -g -c -Wall
+FLAGS	 = -g -c
 LFLAGS	 = -lm
 
 all: $(OBJS)

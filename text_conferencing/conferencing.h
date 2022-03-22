@@ -34,7 +34,7 @@ void packet_fill(struct message* msg, char* buf, int numbytes){
 	//printf("Correct: %s", buf);
 	char* string = (char*)malloc(numbytes*sizeof(char));
 	// buf[strcspn(buf, "\n")] = 0;
-	memcpy(string, buf, numbytes);
+	strcpy(string, buf);
 
 	//printf("str: %s\n", string);
 	//printf("temp2\n");
@@ -59,9 +59,9 @@ void packet_fill(struct message* msg, char* buf, int numbytes){
 		if (buf[i]==':'){
 			count++;
 			if (count==3){
-				for (int j = 0; j < msg->size; j++){
-					printf("Char: %c\n", buf[j+i+1]);
-				}
+				// for (int j = 0; j < msg->size; j++){
+				// 	//printf("Char: %c\n", buf[j+i+1]);
+				// }
 				//printf("bytes: %d\n", numbytes-i);
 				//memset(msg->data, 0, 1000);
 				strcpy(msg->data, buf+i+1);

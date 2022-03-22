@@ -51,6 +51,7 @@ void joinsession(int sockfd, char* username, char* session) {
     int nbytes;
     char pack[2000];
     sprintf(pack, "5:%d:%s:%s", strlen(session), username, session);
+    printf("pack: %s", pack);
 
     if ((nbytes = send(sockfd, pack, strlen(pack), 0)) == -1) {
         perror("send");
@@ -94,13 +95,16 @@ int login(char* username) {
 
     while(loggedin == false) {
         char password[20];
-        char server_ip[15];
+        char server_ip[] = "128.100.13.156";
         char server_port[5];
 
         char initial_input[1000];
 
         fgets(initial_input, 1000, stdin);
-        char* split_input = strtok(initial_input, &temp);
+
+        initial_input[strlen(initial_input) - 1] = '\0';
+
+        char* split_input = strtok(initial_input, " ");
 
         if (strcmp(split_input, "/quit") == 0 || strcmp(split_input, "/quit\n") == 0) {
             printf("Quitting text conferencing.\n");
@@ -118,9 +122,10 @@ int login(char* username) {
             bool error = false;
 
             while (true) {
-                split_input = strtok(NULL, &temp);
+                split_input = strtok(NULL, " ");
 
                 if (split_input != NULL) {
+                    //printf("tok: %s\n", split_input);
                     if (count == 0) {
                         strcpy(username, split_input);
                         count++;
@@ -128,9 +133,11 @@ int login(char* username) {
                         strcpy(password, split_input);
                         count++;
                     } else if (count == 2) {
-                        strcpy(server_ip, split_input);
+                        //strcpy(server_ip, split_input);
+                        //printf("serverip in tok: %s\n", server_ip);
                         count++;
                     } else if (count == 3) {
+                        //printf("IP2: %s\n", server_ip);
                         strcpy(server_port, split_input);
                         count++;
                     } else {
@@ -150,7 +157,8 @@ int login(char* username) {
             if (error == true) {
                 continue;
             }
-
+            //printf("IP: %s\n", server_ip);
+            char server_ip2[] = "128.100.13.156";
             struct addrinfo hints;
             struct addrinfo* serv_info;
             struct addrinfo* p;
@@ -159,9 +167,10 @@ int login(char* username) {
             memset(&hints, 0, sizeof(hints));
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
-            hints.ai_flags = AI_PASSIVE;
-
-            if ((rv = getaddrinfo(NULL, server_port, &hints, &serv_info)) != 0) {
+            //hints.ai_flags = AI_PASSIVE;
+            printf("IP2: %s\nPort: %s\nUser: %s\nPass: %s\n", server_ip2, server_port, username, password);
+            if ((rv = getaddrinfo("128.100.13.156", "6666", &hints, &serv_info)) != 0) {
+                printf("server_port: %s\n", server_port);
                 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
                 exit(2);
             }
@@ -172,17 +181,18 @@ int login(char* username) {
                     continue;
                 }
 
+                if ((rv = connect(sockfd, p->ai_addr, p->ai_addrlen)) == -1) {
+                    //fprintf(stderr, "connect: failed to connect to server\n");
+                    perror("connect");
+                    continue;
+                }
+
                 break;
             }
 
             if (p == NULL) {
                 fprintf(stderr, "client: failed to create socket\n");
                 exit(3);
-            }
-
-            if ((rv = connect(sockfd, p->ai_addr, p->ai_addrlen)) == 0) {
-                fprintf(stderr, "connect: failed to connect to server\n");
-                exit(4);
             }
 
             freeaddrinfo(serv_info);
@@ -260,12 +270,27 @@ int main(int argc, char *argv[]) {
             exit(7);
         }
 
+        if (loggedin == false) {
+            sockfd = login(username);
+
+            if (sockfd == -1) {
+                return 0;
+            }
+
+            loggedin = true;
+        }
+
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             if (loggedin) {
                 char initial_input[1000];
 
-                fgets(initial_input, 1000, STDIN_FILENO);
-                char* split_input = strtok(initial_input, &temp);
+                fgets(initial_input, 1000, stdin);
+                initial_input[strlen(initial_input) - 1] = '\0';
+                char* split_input = strtok(initial_input, " ");
+
+                if (split_input == NULL) {
+                    split_input = initial_input;
+                }
 
                 if (strcmp(split_input, "/login\n") == 0 || strcmp(split_input, "/login") == 0) {
                     printf("You are already logged in.\n");
@@ -273,13 +298,15 @@ int main(int argc, char *argv[]) {
                     logout(sockfd, username, in_session);
                     loggedin = false;
                     in_session = false;
+                    close(sockfd);
                 } else if (strcmp(split_input, "/joinsession\n") == 0 || strcmp(split_input, "/joinsession") == 0) {
                     if (in_session) {
                         printf("You are already in a session.\n");
                     } else {
-                        split_input = strtok(NULL, &temp);
+                        split_input = strtok(NULL, " ");
 
                         if (split_input != NULL) {
+                            printf("split_input: %s\n",split_input);
                             joinsession(sockfd, username, split_input);
                         } else {
                             printf("Missing session ID. Try again.\n");
@@ -296,9 +323,10 @@ int main(int argc, char *argv[]) {
                     if (in_session) {
                         printf("You are already in a session.\n");
                     } else {
-                        split_input = strtok(NULL, &temp);
+                        split_input = strtok(NULL, " ");
 
                         if (split_input != NULL) {
+                            printf("split_input: %s\n",split_input);
                             createsession(sockfd, username, split_input);
                         } else {
                             printf("Missing session ID. Try again.\n");
@@ -310,6 +338,7 @@ int main(int argc, char *argv[]) {
                     logout(sockfd, username, in_session);
                     in_session = false;
                     loggedin = false;
+                    close(sockfd);
                     return 0;
                 } else {
                     if (in_session) {
@@ -319,8 +348,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else {
-                sockfd = login(username);
-                loggedin = true;
+                
             }
         } else if (FD_ISSET(sockfd, &read_fds)) {
             char recv_pack[2000];
@@ -332,6 +360,7 @@ int main(int argc, char *argv[]) {
             }
 
             struct message packet;
+            printf("packet: %s\n", recv_pack);
             packet_fill(&packet, recv_pack, nbytes);
 
             if (packet.type == JN_ACK) {
@@ -348,5 +377,9 @@ int main(int argc, char *argv[]) {
                 printf("%s\n", packet.data);
             }
         }
+        FD_SET(STDIN_FILENO, &read_fds);
+        FD_SET(sockfd, &read_fds);
     }
+
+    close(sockfd);
 }
