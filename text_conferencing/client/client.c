@@ -101,9 +101,7 @@ int login(char* username) {
         char initial_input[1000];
 
         fgets(initial_input, 1000, stdin);
-
         initial_input[strlen(initial_input) - 1] = '\0';
-
         char* split_input = strtok(initial_input, " ");
 
         if (strcmp(split_input, "/quit") == 0 || strcmp(split_input, "/quit\n") == 0) {
@@ -157,7 +155,28 @@ int login(char* username) {
             if (error == true) {
                 continue;
             }
-            //printf("IP: %s\n", server_ip);
+            
+            split_input = strtok(NULL, " ");
+            strcpy(username, split_input);
+            split_input = strtok(NULL, " ");
+            strcpy(password, split_input);
+            split_input = strtok(NULL, " ");
+            strcpy(server_ip, split_input);
+            split_input = strtok(NULL, " ");
+            strcpy(server_port, split_input);
+
+            if (username == NULL || password == NULL || server_ip == NULL || server_port == NULL) {
+                printf("Too few arguments. Try again.\n");
+                continue;
+            }
+
+            split_input = strtok(NULL, " ");
+
+            if (split_input != NULL) {
+                printf("Too few arguments. Try again.\n");
+                continue;
+            } 
+
             char server_ip2[] = "128.100.13.156";
             struct addrinfo hints;
             struct addrinfo* serv_info;
