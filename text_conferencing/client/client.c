@@ -51,7 +51,7 @@ void joinsession(int sockfd, char* username, char* session) {
     int nbytes;
     char pack[2000];
     sprintf(pack, "5:%d:%s:%s", strlen(session), username, session);
-    printf("pack: %s", pack);
+    //printf("pack: %s\n", pack);
 
     if ((nbytes = send(sockfd, pack, strlen(pack), 0)) == -1) {
         perror("send");
@@ -95,7 +95,7 @@ int login(char* username) {
 
     while(loggedin == false) {
         char password[20];
-        char server_ip[] = "128.100.13.156";
+        char server_ip[20]; // "128.100.13.64";
         char server_port[5];
 
         char initial_input[1000];
@@ -116,46 +116,6 @@ int login(char* username) {
                 continue;
             }
         } else {
-            int count = 0;
-            bool error = false;
-
-            while (true) {
-                split_input = strtok(NULL, " ");
-
-                if (split_input != NULL) {
-                    //printf("tok: %s\n", split_input);
-                    if (count == 0) {
-                        strcpy(username, split_input);
-                        count++;
-                    } else if (count == 1) {
-                        strcpy(password, split_input);
-                        count++;
-                    } else if (count == 2) {
-                        //strcpy(server_ip, split_input);
-                        //printf("serverip in tok: %s\n", server_ip);
-                        count++;
-                    } else if (count == 3) {
-                        //printf("IP2: %s\n", server_ip);
-                        strcpy(server_port, split_input);
-                        count++;
-                    } else {
-                        printf("Too many arguments. Try again.\n");
-                        error = true;
-                        break;
-                    }
-                } else if (count == 4) {
-                    break;
-                } else {
-                    printf("Too few arguments. Try again.\n");
-                    error = true;
-                    break;
-                }
-            }
-
-            if (error == true) {
-                continue;
-            }
-            
             split_input = strtok(NULL, " ");
             strcpy(username, split_input);
             split_input = strtok(NULL, " ");
@@ -177,7 +137,7 @@ int login(char* username) {
                 continue;
             } 
 
-            char server_ip2[] = "128.100.13.156";
+            //char server_ip2[] = "128.100.13.156";
             struct addrinfo hints;
             struct addrinfo* serv_info;
             struct addrinfo* p;
@@ -187,8 +147,8 @@ int login(char* username) {
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
             //hints.ai_flags = AI_PASSIVE;
-            printf("IP2: %s\nPort: %s\nUser: %s\nPass: %s\n", server_ip2, server_port, username, password);
-            if ((rv = getaddrinfo("128.100.13.156", "6666", &hints, &serv_info)) != 0) {
+            printf("IP: %s\nPort: %s\nUser: %s\nPass: %s\n", server_ip, server_port, username, password);
+            if ((rv = getaddrinfo(server_ip, server_port, &hints, &serv_info)) != 0) {
                 printf("server_port: %s\n", server_port);
                 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
                 exit(2);
@@ -372,14 +332,14 @@ int main(int argc, char *argv[]) {
         } else if (FD_ISSET(sockfd, &read_fds)) {
             char recv_pack[2000];
             int nbytes;
-
+            memset(recv_pack, 0, 2000);
             if ((nbytes = recv(sockfd, recv_pack, sizeof(recv_pack), 0)) == -1) {
                 fprintf(stderr, "send: failed to receive from server\n");
                 exit(8);
             }
 
             struct message packet;
-            printf("packet: %s\n", recv_pack);
+            //printf("packet: %s\n", recv_pack);
             packet_fill(&packet, recv_pack, nbytes);
 
             if (packet.type == JN_ACK) {

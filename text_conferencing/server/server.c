@@ -173,7 +173,7 @@ void query(struct message* packet){
     if(valid_u!=-1){
         sprintf(return_message, "13:%d:Server:%s", strlen(allUsers), allUsers);
         printf("query return: %s\n", return_message);
-        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
+        if (send(userfds[valid_u], return_message, strlen(return_message)+1, 0) == -1) {
             perror("send");
         } 
     }
