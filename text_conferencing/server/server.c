@@ -216,8 +216,90 @@ void dm(struct message* packet){
             } 
         }
     }
+}
 
+//Source: https://www.geeksforgeeks.org/relational-database-from-csv-files-in-c/
+void readCSV(){
+    // Substitute the full file path
+	// for the string file_path
+	FILE* fp = fopen("login.csv", "r");
+
+	if (!fp)
+		printf("Can't open file\n");
+
+	else {
+        printf("test\n");
+		// Here we have taken size of
+		// array 1024 you can modify it
+		char buffer[1024];
+
+		int row = 0;
+		int column = 0;
+
+		while (fgets(buffer,
+					1024, fp)) {
+			column = 0;
+			row++;
+
+			// To avoid printing of column
+			// names in file can be changed
+			// according to need
+			if (row == 1)
+				continue;
+
+			// Splitting the data
+			char* value = strtok(buffer, ", ");
+
+			while (value) {
+				// Column 1
+				if (column == 0) {
+					printf("User :");
+				}
+
+				// Column 2
+				if (column == 1) {
+					printf("\tPass :");
+				}
+
+				printf("%s", value);
+				value = strtok(NULL, ", ");
+				column++;
+			}
+
+			printf("\n");
+		}
+
+		// Close the file
+		fclose(fp);
+    }
+}
+
+void writeCSV(){
+    FILE* fp = fopen("login.csv", "a+");
  
+    char user[50];
+    char pass[50];
+ 
+    if (!fp) {
+        // Error in file opening
+        printf("Can't open file\n");
+        //return 0;
+    }
+ 
+    // Asking user input for the
+    // new record to be added
+    printf("\nEnter username\n");
+    scanf("%s", &user);
+    printf("\nEnter password\n");
+    scanf("%s", &pass);
+ 
+    // Saving data in file
+    fprintf(fp, "%s, %s\n", user,
+            pass);
+ 
+    printf("\nNew Account added to record");
+ 
+    fclose(fp);
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -232,6 +314,9 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char const *argv[])
 {
+    readCSV();
+    writeCSV();
+    readCSV();
     if (argc != 2) {
         fprintf(stderr, "usage: server {port}\nMissing/too many arguments\n");
         exit(1);
