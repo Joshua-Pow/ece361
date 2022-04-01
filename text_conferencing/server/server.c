@@ -384,6 +384,9 @@ int main(int argc, char const *argv[])
                             query(&packet);
                         }
                         else if (packet.type == DM){
+                            //Packet format: 14:size:SourceUser:Data
+                            //Data format: DestUser:Message
+                            //packet example: 14:size:Will:Bob:Hello Will, its me bob!
                             dm(&packet);
                         }
                         memset(buf, 0, 256);
