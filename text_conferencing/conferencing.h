@@ -17,6 +17,7 @@
 #define MESSAGE 11
 #define QUERY 12
 #define QU_ACK 13
+#define DM 14
 
 
 struct message {

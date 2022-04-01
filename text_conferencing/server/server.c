@@ -108,13 +108,13 @@ void join(struct message* packet){
         
         sprintf(return_message, "6:%d:Server:%s", strlen(packet->data), packet->data);
         printf("b4 joinack: %s\n", return_message);
-        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
+        if (send(userfds[valid_u], return_message, strlen(return_message)+1, 0) == -1) {
             perror("send");
         }
     }
     else{
         sprintf(return_message, "7:%d, Invalid session:Server:%s", strlen(packet->data)+strlen(", Invalid session"), packet->data);
-        if (send(userfds[valid_u], return_message, strlen(return_message), 0) == -1) {
+        if (send(userfds[valid_u], return_message, strlen(return_message)+1, 0) == -1) {
             perror("send");
         } 
     }
@@ -146,7 +146,7 @@ void message(struct message* packet){
         {
             if (i!=valid_u && strcmp(sessions[i], sessions[valid_u])==0){
                 sprintf(return_message, "11:%d:%s:%s", packet->size, packet->source, packet->data);
-                if (send(userfds[i], return_message, strlen(return_message), 0) == -1) {
+                if (send(userfds[i], return_message, strlen(return_message)+1, 0) == -1) {
                     perror("send");
                 } 
             }
@@ -177,6 +177,47 @@ void query(struct message* packet){
             perror("send");
         } 
     }
+}
+
+void getUsername(char* data, char* dest, char* msg){
+    printf("data: %s\n", data);
+
+    //strok only takes in a char* so we need to copy into a temp char*
+    char* string = (char*)malloc(1000*sizeof(char));
+    strcpy(string, data);
+
+    char* token = strtok(string,":");
+	printf("dest: %s\n", token);
+	strcpy(dest, token);
+
+	token = strtok(NULL, ":");
+	printf("msg: %s\n", token);
+	strcpy(msg, token);
+
+    free(string);
+}
+
+void dm(struct message* packet){
+    //Data form: username:messageToUser
+    //ie: BillBob:Hi Bill, hows it going!
+    int valid_u = valid_user(packet->source);
+    char dest[100];
+    char msg[1000];
+    char return_message[1500];
+    int data_size = packet->size-strlen(dest)-1; //We need to take the dest username out of the data size
+
+    if (valid_u!=-1){
+        getUsername(packet->data, dest, msg);
+        int valid_dest = valid_user(dest);
+        if (valid_dest!=-1){
+            sprintf(return_message, "14:%d:%s:%s", data_size, dest, msg);
+            if (send(userfds[valid_dest], return_message, strlen(return_message)+1, 0) == -1) {
+                perror("send");
+            } 
+        }
+    }
+
+ 
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -341,6 +382,9 @@ int main(int argc, char const *argv[])
                         }
                         else if (packet.type == QUERY){
                             query(&packet);
+                        }
+                        else if (packet.type == DM){
+                            dm(&packet);
                         }
                         memset(buf, 0, 256);
                         // got error or connection closed by client
