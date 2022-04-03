@@ -13,22 +13,42 @@
 #include <netdb.h>
 #include "../conferencing.h"
 
-char users[5][10] = {"user1", "user2", "user3", "user4", "user5"};
-char pass[5][10] = {"123", "123", "123", "123", "123"};
-char sessions[5][20] = {"Null", "Null", "Null", "Null", "Null"};
-int connected[5] = {0, 0, 0, 0, 0}; //1 = connected, 0 = not connected
-int userfds[5] = {0, 0, 0, 0, 0};
+#define MAXUSERS 100
+
+char users[MAXUSERS][10]; //= {"user1", "user2", "user3", "user4", "user5"};
+char pass[MAXUSERS][10]; //= {"123", "123", "123", "123", "123"};
+char sessions[MAXUSERS][20]; //= {"Null", "Null", "Null", "Null", "Null"};
+int connected[MAXUSERS] = {0}; //1 = connected, 0 = not connected
+int userfds[MAXUSERS] = {0};
+void readCSV();
 
 void print_sessions(){
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < MAXUSERS; i++)
     {
-        printf("Session %d: %s\n", i, sessions[i]);
+        if (users[i][0]!='\0'){
+            printf("Session %d: %s\n", i, sessions[i]);
+        }
+    }
+}
+
+void init_sessions(){
+    for (int u=0; u<MAXUSERS; u++) {
+        strcpy(sessions[u], "Null");
+    }
+}
+
+void print_users(){
+    for (int i = 0; i < MAXUSERS; i++)
+    {
+        if (users[i][0]!='\0'){
+            printf("User[%d]: %s, Pass: %s\n", i, users[i], pass[i]);
+        }
     }
     
 }
 
 int valid_user(char* user){
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < MAXUSERS; i++)
     {
         if (strcmp(user, users[i])==0){
             return i;
@@ -38,7 +58,7 @@ int valid_user(char* user){
 }
 
 int valid_sess(char* sess){
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < MAXUSERS; i++)
     {
         if (strcmp(sess, sessions[i])==0){
             return i;
@@ -48,6 +68,7 @@ int valid_sess(char* sess){
 }
 
 void login(struct message* packet, int fd){
+    readCSV(); //loads all users into the datastructures
     int valid = valid_user(packet->source); //If valid user, holds index for info
 
     if (valid!=-1){
@@ -199,7 +220,7 @@ void getUsername(char* data, char* dest, char* msg){
 
 void dm(struct message* packet){
     //Data form: username:messageToUser
-    //ie: BillBob:Hi Bill, hows it going!
+    //ie: Bill:Bob:Hi Bill, hows it going!
     int valid_u = valid_user(packet->source);
     char dest[100];
     char msg[1000];
@@ -210,7 +231,7 @@ void dm(struct message* packet){
         getUsername(packet->data, dest, msg);
         int valid_dest = valid_user(dest);
         if (valid_dest!=-1){
-            sprintf(return_message, "14:%d:%s:%s", data_size, dest, msg);
+            sprintf(return_message, "14:%d:%s:%s", data_size, packet->source, msg);
             if (send(userfds[valid_dest], return_message, strlen(return_message)+1, 0) == -1) {
                 perror("send");
             } 
@@ -253,20 +274,22 @@ void readCSV(){
 			while (value) {
 				// Column 1
 				if (column == 0) {
-					printf("User :");
+					//printf("User :");
+                    strcpy(users[row-2], value);
 				}
 
 				// Column 2
 				if (column == 1) {
-					printf("\tPass :");
+					//printf("\tPass :");
+                    strcpy(pass[row-2], value);
 				}
 
-				printf("%s", value);
+				//printf("%s", value);
 				value = strtok(NULL, ", ");
 				column++;
 			}
 
-			printf("\n");
+			//printf("\n");
 		}
 
 		// Close the file
@@ -274,9 +297,9 @@ void readCSV(){
     }
 }
 
-void writeCSV(){
+void writeCSV(char* username, char* password){
     FILE* fp = fopen("login.csv", "a+");
- 
+    
     char user[50];
     char pass[50];
  
@@ -288,10 +311,12 @@ void writeCSV(){
  
     // Asking user input for the
     // new record to be added
-    printf("\nEnter username\n");
-    scanf("%s", &user);
-    printf("\nEnter password\n");
-    scanf("%s", &pass);
+    // printf("\nEnter username\n");
+    // scanf("%s", &user);
+    // printf("\nEnter password\n");
+    // scanf("%s", &pass);
+    strcpy(user, username);
+    strcpy(pass, password);
  
     // Saving data in file
     fprintf(fp, "%s, %s\n", user,
@@ -300,6 +325,37 @@ void writeCSV(){
     printf("\nNew Account added to record");
  
     fclose(fp);
+}
+
+void reg_user(struct message* packet, int fd){
+    readCSV();
+    //Source should be the name user registering with
+    int taken = valid_user(packet->source);
+
+    //see if username is registered
+    if (taken!=-1){
+        writeCSV(packet->source, packet->data); //Writes login info to file
+        readCSV(); //Loads new login info into data structures
+        int newUserLocation = valid_user(packet->source);
+
+        if (newUserLocation!=-1){ //DOUBLE CHECKING the new user was added into the array
+            userfds[newUserLocation] = fd;
+            if (send(fd, "16:15:Server:Valid register", strlen("16:15:Server:Valid register")+1, 0) == -1) {
+                perror("send");
+            }
+        }
+        else{
+            printf("Reg_user - Error loading new user data into data structures");
+            if (send(fd, "17:25:Server:Error importing new data", strlen("17:25:Server:Error importing new data")+1, 0) == -1) {
+                perror("send");
+            }
+        }
+    }
+    else{
+        if (send(fd, "17:29:Server:Error username already exist", strlen("17:30:Server:Error: Username already exist")+1, 0) == -1) {
+            perror("send");
+        }
+    }
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -314,9 +370,13 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char const *argv[])
 {
-    readCSV();
-    writeCSV();
-    readCSV();
+    // init_sessions();
+    // readCSV();
+    // print_users();
+    // print_sessions();
+    // writeCSV();
+    // readCSV();
+    // print_users();
     if (argc != 2) {
         fprintf(stderr, "usage: server {port}\nMissing/too many arguments\n");
         exit(1);
@@ -473,6 +533,10 @@ int main(int argc, char const *argv[])
                             //Data format: DestUser:Message
                             //packet example: 14:size:Will:Bob:Hello Will, its me bob!
                             dm(&packet);
+                        }
+                        else if (packet.type == REGISTER){
+                            //Packet format: 15:size:Source:pass
+                            reg_user(&packet, i);
                         }
                         memset(buf, 0, 256);
                         // got error or connection closed by client

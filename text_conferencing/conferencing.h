@@ -18,6 +18,9 @@
 #define QUERY 12
 #define QU_ACK 13
 #define DM 14
+#define REGISTER 15
+#define REG_ACK 16
+#define REG_NAK 17
 
 
 struct message {
