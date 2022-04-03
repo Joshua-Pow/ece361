@@ -117,8 +117,16 @@ int login(char* username) {
         if (strcmp(split_input, "/quit") == 0 || strcmp(split_input, "/quit\n") == 0) {
             printf("Quitting text conferencing.\n");
             return -1;
-        } else if (strcmp(split_input, "/login") != 0 || strcmp(split_input, "/register") != 0) {
-            if (strcmp(split_input, "/login\n") == 0 || strcmp(split_input, "/register\n") == 0) {
+        } else if (strcmp(split_input, "/login") != 0) {
+            if (strcmp(split_input, "/login\n") == 0) {
+                printf("Missing arguments. Try again.\n");
+                continue;
+            } else {
+                printf("Unable to use other commands until you are logged in.\n");
+                continue;
+            }
+        } else if (strcmp(split_input, "/register") != 0) {
+            if (strcmp(split_input, "/register\n") == 0) {
                 printf("Missing arguments. Try again.\n");
                 continue;
             } else {
