@@ -117,23 +117,7 @@ int login(char* username) {
         if (strcmp(split_input, "/quit") == 0 || strcmp(split_input, "/quit\n") == 0) {
             printf("Quitting text conferencing.\n");
             return -1;
-        } else if (strcmp(split_input, "/login") != 0) {
-            if (strcmp(split_input, "/login\n") == 0) {
-                printf("Missing arguments. Try again.\n");
-                continue;
-            } else {
-                printf("Unable to use other commands until you are logged in.\n");
-                continue;
-            }
-        } else if (strcmp(split_input, "/register") != 0) {
-            if (strcmp(split_input, "/register\n") == 0) {
-                printf("Missing arguments. Try again.\n");
-                continue;
-            } else {
-                printf("Unable to use other commands until you are logged in.\n");
-                continue;
-            }
-        } else {
+        } else if (strcmp(split_input, "/register") == 0 || strcmp(split_input, "/login") == 0) {
             bool regist = true;
 
             if (strcmp(split_input, "/login") == 0) {
@@ -228,13 +212,21 @@ int login(char* username) {
                 printf("You have successfully logged in.\n");
                 loggedin = true;
             } else if (packet.type == LO_NAK) {
-                printf("You have failed to login due to %s. Try again.", packet.data);
+                printf("You have failed to login due to %s. Try again.\n", packet.data);
                 continue;
             } else if (packet.type == REG_ACK) {
                 printf("You have successfully registered and logged in.\n");
                 loggedin = true;
             } else if (packet.type == REG_NAK) {
-                printf("You have failed to register due to %s. Try again.", packet.data);
+                printf("You have failed to register due to %s. Try again.\n", packet.data);
+                continue;
+            }
+        } else {
+            if (strcmp(split_input, "/register\n") == 0 || strcmp(split_input, "/login\n") == 0) {
+                printf("Missing arguments. Try again.\n");
+                continue;
+            } else {
+                printf("Unable to use other commands until you are logged in.\n");
                 continue;
             }
         }
