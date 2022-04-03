@@ -222,10 +222,10 @@ int login(char* username) {
             } else if (packet.type == LO_NAK) {
                 printf("You have failed to login due to %s. Try again.", packet.data);
                 continue;
-            } else if (packet.type == RE_ACK) {
+            } else if (packet.type == REG_ACK) {
                 printf("You have successfully registered and logged in.\n");
                 loggedin = true;
-            } else if (packet.type == RE_NAK) {
+            } else if (packet.type == REG_NAK) {
                 printf("You have failed to register due to %s. Try again.", packet.data);
                 continue;
             }
