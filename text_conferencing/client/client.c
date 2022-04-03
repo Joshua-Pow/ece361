@@ -218,9 +218,6 @@ int login(char* username) {
                 printf("You have successfully registered and logged in.\n");
                 loggedin = true;
             } else if (packet.type == REG_NAK) {
-<<<<<<< HEAD
-                printf("You have failed to register due to %s. Try again.", packet.data);
-=======
                 printf("You have failed to register due to %s. Try again.\n", packet.data);
                 continue;
             }
@@ -230,7 +227,6 @@ int login(char* username) {
                 continue;
             } else {
                 printf("Unable to use other commands until you are logged in.\n");
->>>>>>> ae9953ab3608fd0d20154a0d1e75d4b70dc4f785
                 continue;
             }
         }
