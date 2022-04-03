@@ -88,6 +88,16 @@ void text(int sockfd, char* username, char* message) {
     }
 }
 
+void dm(int sockfd, char* source, char* destination, char* message) {
+    int nbytes;
+    char pack[2000];
+    sprintf(pack, "14:%d:%s:%s:%s", strlen(message) + strlen(destination) + 1, source, destination, message);
+
+    if ((nbytes = send(sockfd, pack, strlen(pack), 0)) == -1) {
+        perror("send");
+    }
+}
+
 int login(char* username) {
     char temp = ' ';
     bool loggedin = false;
@@ -107,8 +117,8 @@ int login(char* username) {
         if (strcmp(split_input, "/quit") == 0 || strcmp(split_input, "/quit\n") == 0) {
             printf("Quitting text conferencing.\n");
             return -1;
-        } else if (strcmp(split_input, "/login") != 0) {
-            if (strcmp(split_input, "/login\n") == 0) {
+        } else if (strcmp(split_input, "/login") != 0 || strcmp(split_input, "/register") != 0) {
+            if (strcmp(split_input, "/login\n") == 0 || strcmp(split_input, "/register\n") == 0) {
                 printf("Missing arguments. Try again.\n");
                 continue;
             } else {
@@ -116,6 +126,12 @@ int login(char* username) {
                 continue;
             }
         } else {
+            bool regist = true;
+
+            if (strcmp(split_input, "/login") == 0) {
+                regist = false;
+            }
+
             split_input = strtok(NULL, " ");
             strcpy(username, split_input);
             split_input = strtok(NULL, " ");
@@ -133,7 +149,7 @@ int login(char* username) {
             split_input = strtok(NULL, " ");
 
             if (split_input != NULL) {
-                printf("Too few arguments. Try again.\n");
+                printf("Too many arguments. Try again.\n");
                 continue;
             } 
 
@@ -178,7 +194,12 @@ int login(char* username) {
 
             int nbytes;
             char pack[2000];
-            sprintf(pack, "1:%d:%s:%s", strlen(password), username, password);
+
+            if (regist) {
+                sprintf(pack, "15:%d:%s:%s", strlen(password), username, password);
+            } else {
+                sprintf(pack, "1:%d:%s:%s", strlen(password), username, password);
+            }
 
             if ((nbytes = send(sockfd, pack, strlen(pack), 0)) == -1) {
                 fprintf(stderr, "send: failed to send to server\n");
@@ -198,8 +219,14 @@ int login(char* username) {
             if (packet.type == LO_ACK) {
                 printf("You have successfully logged in.\n");
                 loggedin = true;
-            } else {
+            } else if (packet.type == LO_NAK) {
                 printf("You have failed to login due to %s. Try again.", packet.data);
+                continue;
+            } else if (packet.type == RE_ACK) {
+                printf("You have successfully registered and logged in.\n");
+                loggedin = true;
+            } else if (packet.type == RE_NAK) {
+                printf("You have failed to register due to %s. Try again.", packet.data);
                 continue;
             }
         }
@@ -271,7 +298,7 @@ int main(int argc, char *argv[]) {
                     split_input = initial_input;
                 }
 
-                if (strcmp(split_input, "/login\n") == 0 || strcmp(split_input, "/login") == 0) {
+                if (strcmp(split_input, "/login\n") == 0 || strcmp(split_input, "/login") == 0 || strcmp(split_input, "/register\n") == 0 || strcmp(split_input, "/register") == 0) {
                     printf("You are already logged in.\n");
                 } else if (strcmp(split_input, "/logout\n") == 0 || strcmp(split_input, "/logout") == 0) {
                     logout(sockfd, username, in_session);
@@ -319,6 +346,22 @@ int main(int argc, char *argv[]) {
                     loggedin = false;
                     close(sockfd);
                     return 0;
+                } else if (strcmp(split_input, "/dm\n") == 0 || strcmp(split_input, "/dm") == 0) {
+                    split_input = strtok(NULL, " ");
+
+                    if (split_input == NULL) {
+                        printf("Too few arguments. Try again.\n");
+                    }
+
+                    char* dest;
+                    strcpy(dest, split_input);
+                    split_input = strtok(NULL, " ");
+
+                    if (split_input == NULL) {
+                        printf("Missing message. Try again.\n");
+                    }
+
+                    dm(sockfd, username, dest, split_input);
                 } else {
                     if (in_session) {
                         text(sockfd, username, initial_input);
@@ -327,7 +370,8 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else {
-                
+                printf("Unable to use other commands until you are logged in.\n");
+                login(username);
             }
         } else if (FD_ISSET(sockfd, &read_fds)) {
             char recv_pack[2000];
@@ -354,6 +398,8 @@ int main(int argc, char *argv[]) {
                 printf("%s: %s\n", packet.source, packet.data);
             } else if (packet.type == QU_ACK) {
                 printf("%s\n", packet.data);
+            } else if (packet.type == DM) {
+                printf("%s (DM): %s\n", packet.source, packet.data);
             }
         }
         FD_SET(STDIN_FILENO, &read_fds);
