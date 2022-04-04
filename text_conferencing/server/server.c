@@ -69,6 +69,7 @@ int valid_sess(char* sess){
 
 void login(struct message* packet, int fd){
     readCSV(); //loads all users into the datastructures
+    print_users();
     int valid = valid_user(packet->source); //If valid user, holds index for info
 
     if (valid!=-1){
@@ -276,12 +277,14 @@ void readCSV(){
 				if (column == 0) {
 					//printf("User :");
                     strcpy(users[row-2], value);
+                    //users[row-2][strlen(value)-1] = '\0';
 				}
 
 				// Column 2
 				if (column == 1) {
 					//printf("\tPass :");
                     strcpy(pass[row-2], value);
+                    pass[row-2][strlen(value)-1] = '\0';
 				}
 
 				//printf("%s", value);
