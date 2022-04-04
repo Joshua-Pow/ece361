@@ -348,20 +348,22 @@ int main(int argc, char *argv[]) {
                     return 0;
                 } else if (strcmp(split_input, "/dm\n") == 0 || strcmp(split_input, "/dm") == 0) {
                     split_input = strtok(NULL, " ");
+                    printf("split input %s\n", split_input);
 
                     if (split_input == NULL) {
                         printf("Too few arguments. Try again.\n");
-                    }
+                    } else {
+                        char dest[20];
+                        strcpy(dest, split_input);
+                        split_input = strtok(NULL, " ");
+                        printf("split input2 %s\n", split_input);
 
-                    char* dest;
-                    strcpy(dest, split_input);
-                    split_input = strtok(NULL, " ");
-
-                    if (split_input == NULL) {
-                        printf("Missing message. Try again.\n");
-                    }
-
-                    dm(sockfd, username, dest, split_input);
+                        if (split_input == NULL) {
+                            printf("Missing message. Try again.\n");
+                        } else {
+                            dm(sockfd, username, dest, split_input);
+                        }
+                    }   
                 } else {
                     if (in_session) {
                         text(sockfd, username, initial_input);
