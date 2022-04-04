@@ -183,7 +183,7 @@ void query(struct message* packet){
     char return_message[250];
     char allUsers[200] = "Online: ";
     
-    for (int i=0; i<5; i++){
+    for (int i=0; i<MAXUSERS; i++){
         if (connected[i]==1){
             strcat(allUsers, "\n");
             strcat(allUsers, users[i]); //Find all unique rooms
@@ -250,7 +250,6 @@ void readCSV(){
 		printf("Can't open file\n");
 
 	else {
-        printf("test\n");
 		// Here we have taken size of
 		// array 1024 you can modify it
 		char buffer[1024];
@@ -325,7 +324,7 @@ void writeCSV(char* username, char* password){
     fprintf(fp, "%s, %s\n", user,
             pass);
  
-    printf("\nNew Account added to record");
+    printf("\nNew Account added to record\n");
  
     fclose(fp);
 }
@@ -336,10 +335,11 @@ void reg_user(struct message* packet, int fd){
     int taken = valid_user(packet->source);
 
     //see if username is registered
-    if (taken!=-1){
+    if (taken==-1){
         writeCSV(packet->source, packet->data); //Writes login info to file
         readCSV(); //Loads new login info into data structures
         int newUserLocation = valid_user(packet->source);
+        connected[newUserLocation] = 1;
 
         if (newUserLocation!=-1){ //DOUBLE CHECKING the new user was added into the array
             userfds[newUserLocation] = fd;
@@ -493,7 +493,7 @@ int main(int argc, char const *argv[])
                     // handle data from a client
                     memset(buf, 0, 256);
                     if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
-                        for (int k=0; k<5; k++){
+                        for (int k=0; k<MAXUSERS; k++){
                             if (userfds[k]==i){
                                 connected[k]=0;
                                 strcpy(sessions[k], "Null");
@@ -545,7 +545,7 @@ int main(int argc, char const *argv[])
                         // got error or connection closed by client
                         if (nbytes <= 0) {
                             // connection closed
-                            for (int k=0; k<5; k++){
+                            for (int k=0; k<MAXUSERS; k++){
                                 if (userfds[k]==i){
                                     connected[k]=0;
                                     strcpy(sessions[k], "Null");
