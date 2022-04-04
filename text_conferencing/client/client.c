@@ -355,14 +355,11 @@ int main(int argc, char *argv[]) {
                     } else {
                         char dest[20];
                         strcpy(dest, split_input);
-                        split_input = strtok(NULL, " ");
-                        printf("split input2 %s\n", split_input);
 
-                        if (split_input == NULL) {
-                            printf("Missing message. Try again.\n");
-                        } else {
-                            dm(sockfd, username, dest, split_input);
-                        }
+                        char *input = &initial_input[0];
+                        input = input + strlen(dest) + 5;
+
+                        dm(sockfd, username, dest, input);
                     }   
                 } else {
                     if (in_session) {
@@ -404,6 +401,7 @@ int main(int argc, char *argv[]) {
                 printf("%s (DM): %s\n", packet.source, packet.data);
             }
         }
+        
         FD_SET(STDIN_FILENO, &read_fds);
         FD_SET(sockfd, &read_fds);
     }
